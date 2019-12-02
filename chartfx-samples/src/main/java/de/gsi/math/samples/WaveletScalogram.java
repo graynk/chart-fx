@@ -32,7 +32,7 @@ import javafx.scene.layout.VBox;
 public class WaveletScalogram extends AbstractDemoApplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(WaveletScalogram.class);
     private static final int MAX_POINTS = 1024;
-    public static final boolean LOAD_EXAMPLE_DATA = true;
+    public static final boolean LOAD_EXAMPLE_DATA = false;
     private DataSet3D fdataset;
     private DefaultDataSet fwavelet;
     private DefaultDataSet ffourier;
@@ -133,7 +133,7 @@ public class WaveletScalogram extends AbstractDemoApplication {
         contourChartRenderer.setColorGradient(ColorGradient.RAINBOW);
         // contourChartRenderer.setColorGradient(ColorGradient.JET);
         // contourChartRenderer.setColorGradient(ColorGradient.TOPO_EXT);
-        contourChartRenderer.getDatasets().add(createDataSet());
+        chart1.getDatasets().add(createDataSet());
 
         final DemoChart chart2 = new DemoChart();
         chart2.getXAxis().setName("frequency");
