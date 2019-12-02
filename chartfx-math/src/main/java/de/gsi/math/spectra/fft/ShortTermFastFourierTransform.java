@@ -58,10 +58,11 @@ public class ShortTermFastFourierTransform {
         }
 
         // set frequency axis
-        double dt = (input.get(DIM_X, input.getDataCount(DIM_X) - 1) - input.get(DIM_X, 0)) / input.getDataCount(DIM_X);
+        double fs = input.getDataCount(DIM_X) / (input.get(DIM_X, input.getDataCount(DIM_X) - 1) - input.get(DIM_X, 0));
+        double fStep = fs / nQuantf;
         double[] frequencyAxis = new double[nQuantf / 2];
         for (int i = 0; i < nQuantf / 2; i++) {
-            frequencyAxis[i] = i / (input.get(DIM_X, input.getDataCount(DIM_X) - 1) - input.get(DIM_X, 0));
+            frequencyAxis[i] = i * fStep;
         }
 
         // set amplitude data
@@ -98,6 +99,7 @@ public class ShortTermFastFourierTransform {
         // initialize result dataset
         DoubleDataSet3D result = new DoubleDataSet3D("SFFT(" + input.getName() + ")", frequencyAxis, timeAxis,
                 amplitudeData);
+        result.getInfoList().add("nFFT=" + nQuantf + ", nT=" + nQuantt);
 
         // Set Axis Labels and Units
         result.getAxisDescription(DIM_Y).set("Time", input.getAxisDescription(DIM_X).getUnit(), timeAxis[0],

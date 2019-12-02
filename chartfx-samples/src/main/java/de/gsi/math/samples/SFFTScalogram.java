@@ -92,8 +92,6 @@ public class SFFTScalogram extends AbstractDemoApplication {
         chart3.getDatasets().setAll(rawDataSet);
         DataSet3D sfftData = ShortTermFastFourierTransform.getSpectrogram(rawDataSet, demoProperties.getnFFT(),
                 demoProperties.getnT());
-        ((DataSetMetaData) sfftData).getInfoList()
-                .add("nFFT=" + demoProperties.getnFFT() + ", nT=" + demoProperties.getnT());
         chart1.getDatasets().setAll(sfftData);
 
         ContinuousWavelet wtrafo = new ContinuousWavelet();
@@ -113,7 +111,7 @@ public class SFFTScalogram extends AbstractDemoApplication {
 
         final Random rnd = new Random();
         for (int i = 0; i < yModel.length; i++) {
-            final double x = i * SAMPLE_RATE;
+            final double x = i * 1/SAMPLE_RATE;
             double offset = 0;
             final double error = 0.1 * rnd.nextGaussian();
 
@@ -142,7 +140,7 @@ public class SFFTScalogram extends AbstractDemoApplication {
 
         double[] tValues = new double[yModel.length];
         for (int i = 0; i < tValues.length; i++) {
-            tValues[i] = i * SAMPLE_RATE;
+            tValues[i] = i * 1/SAMPLE_RATE;
         }
         DataSet rawDataSet = new DataSetBuilder("testData").setXValuesNoCopy(tValues).setYValues(yModel).build();
         rawDataSet.getAxisDescription(DataSet.DIM_X).set("time", "s");
@@ -164,7 +162,7 @@ public class SFFTScalogram extends AbstractDemoApplication {
      */
     public class SfftDemoProperties {
         // nSamples
-        private final IntegerProperty nSamples = new SimpleIntegerProperty(this, "data/NSamples", 4096);
+        private final IntegerProperty nSamples = new SimpleIntegerProperty(this, "data/NSamples", 4000);
 
         public IntegerProperty nSamplesProperty() {
             return nSamples;
@@ -179,7 +177,7 @@ public class SFFTScalogram extends AbstractDemoApplication {
         }
 
         // sample Rate
-        private final DoubleProperty sampleRate = new SimpleDoubleProperty(this, "data/sampleRate", 1e-6);
+        private final DoubleProperty sampleRate = new SimpleDoubleProperty(this, "data/sampleRate", 1e6);
 
         public DoubleProperty sampleRateProperty() {
             return sampleRate;
