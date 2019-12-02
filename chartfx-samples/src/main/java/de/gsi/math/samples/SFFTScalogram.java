@@ -5,6 +5,7 @@ import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.gsi.chart.plugins.DataPointTooltip;
 import de.gsi.chart.plugins.UpdateAxisLabels;
 import de.gsi.chart.renderer.spi.ContourDataSetRenderer;
 import de.gsi.chart.renderer.spi.utils.ColorGradient;
@@ -56,13 +57,17 @@ public class SFFTScalogram extends AbstractDemoApplication {
         chart1.getPlugins().add(new UpdateAxisLabels());
         final ContourDataSetRenderer contourChartRenderer = new ContourDataSetRenderer();
         chart1.getRenderers().set(0, contourChartRenderer);
-//        chart1.getAxes().addAll(contourChartRenderer.getFirstAxis(Orientation.HORIZONTAL),
-//                contourChartRenderer.getFirstAxis(Orientation.VERTICAL), contourChartRenderer.getZAxis());
+        chart1.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
+        // chart1.getAxes().addAll(contourChartRenderer.getFirstAxis(Orientation.HORIZONTAL),
+        // contourChartRenderer.getFirstAxis(Orientation.VERTICAL), contourChartRenderer.getZAxis());
         contourChartRenderer.setColorGradient(ColorGradient.VIRIDIS);
         DataSet3D data = createDataSet();
-        contourChartRenderer.getDatasets().add(data);
+        // contourChartRenderer.getDatasets().add(data); // Does not update axis ranges
+        chart1.getDatasets().add(data);
 
         final DemoChart chart2 = new DemoChart();
+        // remove datapointTooltip because of bug
+        chart2.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
         chart2.getPlugins().add(new UpdateAxisLabels());
         chart2.getDatasets().addAll(rawDataSet);
 
