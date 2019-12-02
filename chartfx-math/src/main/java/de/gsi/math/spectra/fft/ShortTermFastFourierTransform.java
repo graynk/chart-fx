@@ -63,43 +63,49 @@ public class ShortTermFastFourierTransform {
         for (int i = 0; i < nQuantf / 2; i++) {
             frequencyAxis[i] = i / (input.get(DIM_X, input.getDataCount(DIM_X) - 1) - input.get(DIM_X, 0));
         }
-        
+
         // set amplitude data
         double[][] amplitudeData = new double[nQuantt][];
+        double amplitudeMin = Double.POSITIVE_INFINITY;
+        double amplitudeMax = Double.NEGATIVE_INFINITY;
 
         // calculate scalogram
         final DoubleFFT_1D fastFourierTrafo = new DoubleFFT_1D(nQuantf);
         double[] raw = new double[nQuantf];
-        double[] mean = new double[nQuantf/2];
-        double[] current = new double[nQuantf/2];
-        final int timestep = Math.floorDiv(input.getDataCount()-nQuantf, nQuantt);
+        double[] mean = new double[nQuantf / 2];
+        double[] current = new double[nQuantf / 2];
+        final int timestep = Math.floorDiv(input.getDataCount() - nQuantf, nQuantt);
         for (int i = 0; i < nQuantt; i++) {
+            LOGGER.atDebug().addArgument(i * timestep).addArgument(i * timestep + nQuantf)
+                    .log("SFFT: evaluating slice from {} to {}");
             for (int j = 0; j < nQuantf; j++) {
-                raw[j] = input.get(DIM_X, i * timestep + j);
+                raw[j] = input.get(DIM_Y, i * timestep + j);
             }
             fastFourierTrafo.realForward(raw);
             amplitudeData[i] = SpectrumTools.computeMagnitudeSpectrum_dB(raw, true);
             // do projection to frequency axis?
             current = SpectrumTools.computeMagnitudeSpectrum_dB(raw, true);
-            for (int j = 0; j < nQuantf/2; j++) {
+            for (int j = 0; j < nQuantf / 2; j++) {
+                amplitudeMin = Math.min(amplitudeMin, amplitudeData[i][j]);
+                amplitudeMax = Math.max(amplitudeMax, amplitudeData[i][j]);
                 mean[j] += current[j];
             }
         }
-        for (int j = 0; j < nQuantf/2; j++) {
+        for (int j = 0; j < nQuantf / 2; j++) {
             mean[j] /= nQuantt;
         }
 
         // initialize result dataset
         DoubleDataSet3D result = new DoubleDataSet3D("SFFT(" + input.getName() + ")", frequencyAxis, timeAxis,
                 amplitudeData);
-        result.recomputeLimits(DIM_X);
-        result.recomputeLimits(DIM_Y);
-        result.recomputeLimits(DIM_Z);
-        
+
         // Set Axis Labels and Units
-        result.getAxisDescription(DIM_Y).set("Time", input.getAxisDescription(DIM_X).getUnit());
-        result.getAxisDescription(DIM_X).set("Frequency", "1/" + input.getAxisDescription(DIM_X).getUnit());
-        result.getAxisDescription(DIM_Z).set("Magnitude", input.getAxisDescription(DIM_Y).getUnit());
+        result.getAxisDescription(DIM_Y).set("Time", input.getAxisDescription(DIM_X).getUnit(), timeAxis[0],
+                timeAxis[timeAxis.length - 1]);
+        result.getAxisDescription(DIM_X).set("Frequency", "1/" + input.getAxisDescription(DIM_X).getUnit(),
+                frequencyAxis[0], frequencyAxis[frequencyAxis.length - 1]);
+        result.getAxisDescription(DIM_Z).set("Magnitude", input.getAxisDescription(DIM_Y).getUnit(), amplitudeMin,
+                amplitudeMax);
         LOGGER.atInfo().addArgument(result).log("result of sfft: {}");
         return result;
     }

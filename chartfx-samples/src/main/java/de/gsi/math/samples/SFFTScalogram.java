@@ -5,20 +5,26 @@ import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.gsi.chart.axes.Axis;
+import de.gsi.chart.axes.spi.DefaultNumericAxis;
 import de.gsi.chart.plugins.DataPointTooltip;
 import de.gsi.chart.plugins.UpdateAxisLabels;
 import de.gsi.chart.renderer.spi.ContourDataSetRenderer;
+import de.gsi.chart.renderer.spi.MetaDataRenderer;
 import de.gsi.chart.renderer.spi.utils.ColorGradient;
+import de.gsi.chart.ui.geometry.Side;
 import de.gsi.dataset.DataSet;
 import de.gsi.dataset.DataSet3D;
+import de.gsi.dataset.DataSetMetaData;
 import de.gsi.dataset.spi.DataSetBuilder;
 import de.gsi.math.TMath;
 import de.gsi.math.samples.utils.AbstractDemoApplication;
 import de.gsi.math.samples.utils.DemoChart;
 import de.gsi.math.spectra.fft.ShortTermFastFourierTransform;
+import de.gsi.math.spectra.wavelet.ContinuousWavelet;
 import javafx.application.Application;
 import javafx.scene.Node;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
 
 /**
  * example illustrating Short Term Fourier Transform
@@ -28,10 +34,19 @@ import javafx.scene.layout.VBox;
 public class SFFTScalogram extends AbstractDemoApplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(SFFTScalogram.class);
     private static final int MAX_POINTS = 2048 * 2;
-    public static final boolean LOAD_EXAMPLE_DATA = false;
     final static double SAMPLE_RATE = 1e-6;
-    final static int N_FFT = 512;
+
+    // sfft constants
+    final static int N_FFT = 256;
     final static double SFFT_OVERLAP = 0.9;
+
+    // wavelet constants
+    final static int nQuantx = 512;
+    final static int nQuanty = 1024;
+    final static double nu = 2 * 25;
+    final static double fmin = 0.05;
+    final static double fmax = 0.5;
+
     private DataSet rawDataSet;
 
     private DataSet3D createDataSet() {
@@ -44,9 +59,11 @@ public class SFFTScalogram extends AbstractDemoApplication {
         rawDataSet = new DataSetBuilder("testData").setXValuesNoCopy(tValues).setYValues(yValues).build();
         rawDataSet.getAxisDescription(DataSet.DIM_X).set("time", "s");
         rawDataSet.getAxisDescription(DataSet.DIM_Y).set("amplitude", "a.u.");
+        ((DataSetMetaData) rawDataSet).getInfoList().add("test");
 
         DataSet3D fdataset = ShortTermFastFourierTransform.getSpectrogram(rawDataSet, N_FFT, SFFT_OVERLAP);
 
+        ((DataSetMetaData) fdataset).getInfoList().add("test2");
         return fdataset;
     }
 
@@ -55,23 +72,34 @@ public class SFFTScalogram extends AbstractDemoApplication {
 
         final DemoChart chart1 = new DemoChart();
         chart1.getPlugins().add(new UpdateAxisLabels());
-        final ContourDataSetRenderer contourChartRenderer = new ContourDataSetRenderer();
-        chart1.getRenderers().set(0, contourChartRenderer);
+        final ContourDataSetRenderer contourChartRenderer1 = new ContourDataSetRenderer();
+        chart1.getRenderers().set(0, contourChartRenderer1);
+        chart1.getRenderers().add(new MetaDataRenderer(chart1));
         chart1.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
-        // chart1.getAxes().addAll(contourChartRenderer.getFirstAxis(Orientation.HORIZONTAL),
-        // contourChartRenderer.getFirstAxis(Orientation.VERTICAL), contourChartRenderer.getZAxis());
-        contourChartRenderer.setColorGradient(ColorGradient.VIRIDIS);
-        DataSet3D data = createDataSet();
+        DefaultNumericAxis xAxis = new DefaultNumericAxis();
+        xAxis.setSide(Side.BOTTOM);
+        DefaultNumericAxis yAxis = new DefaultNumericAxis();
+        yAxis.setSide(Side.LEFT);
+        Axis zAxis = contourChartRenderer1.getZAxis();
+        chart1.getAxes().addAll(xAxis, yAxis, zAxis);
+        contourChartRenderer1.setColorGradient(ColorGradient.VIRIDIS);
+        DataSet3D dataSFFT = createDataSet();
         // contourChartRenderer.getDatasets().add(data); // Does not update axis ranges
-        chart1.getDatasets().add(data);
+        chart1.getDatasets().add(dataSFFT);
 
         final DemoChart chart2 = new DemoChart();
-        // remove datapointTooltip because of bug
-        chart2.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
         chart2.getPlugins().add(new UpdateAxisLabels());
-        chart2.getDatasets().addAll(rawDataSet);
+        final ContourDataSetRenderer contourChartRenderer2 = new ContourDataSetRenderer();
+        chart2.getRenderers().set(0, contourChartRenderer2);
+        chart2.getRenderers().add(new MetaDataRenderer(chart2));
+        chart2.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
+        contourChartRenderer2.setColorGradient(ColorGradient.VIRIDIS);
+        ContinuousWavelet wtrafo = new ContinuousWavelet();
+        DataSet3D dataWavelet = wtrafo.getScalogram(rawDataSet.getValues(DataSet.DIM_X), nQuantx, nQuanty, nu, fmin,
+                fmax);
+        chart2.getDatasets().add(dataWavelet);
 
-        return new VBox(chart1, chart2);
+        return new HBox(chart1, chart2);
     }
 
     private static double[] loadSyntheticData() {
