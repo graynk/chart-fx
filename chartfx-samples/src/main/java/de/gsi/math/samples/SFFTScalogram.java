@@ -13,7 +13,6 @@ import de.gsi.chart.plugins.DataPointTooltip;
 import de.gsi.chart.plugins.UpdateAxisLabels;
 import de.gsi.chart.renderer.spi.ContourDataSetRenderer;
 import de.gsi.chart.renderer.spi.MetaDataRenderer;
-import de.gsi.chart.renderer.spi.utils.ColorGradient;
 import de.gsi.chart.ui.geometry.Side;
 import de.gsi.dataset.DataSet;
 import de.gsi.dataset.DataSet3D;
@@ -60,12 +59,12 @@ public class SFFTScalogram extends AbstractDemoApplication {
         chart1.getRenderers().add(new MetaDataRenderer(chart1));
         chart1.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
         DefaultNumericAxis xAxis = new DefaultNumericAxis();
+        xAxis.setAutoUnitScaling(true);
         xAxis.setSide(Side.BOTTOM);
         DefaultNumericAxis yAxis = new DefaultNumericAxis();
         yAxis.setSide(Side.LEFT);
         Axis zAxis = contourChartRenderer1.getZAxis();
         chart1.getAxes().addAll(xAxis, yAxis, zAxis);
-        contourChartRenderer1.setColorGradient(ColorGradient.VIRIDIS);
 
         chart2 = new DemoChart();
         chart2.getPlugins().add(new UpdateAxisLabels());
@@ -73,7 +72,6 @@ public class SFFTScalogram extends AbstractDemoApplication {
         chart2.getRenderers().set(0, contourChartRenderer2);
         chart2.getRenderers().add(new MetaDataRenderer(chart2));
         chart2.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
-        contourChartRenderer2.setColorGradient(ColorGradient.VIRIDIS);
         
         chart3 = new DemoChart();
         chart3.getPlugins().add(new UpdateAxisLabels());

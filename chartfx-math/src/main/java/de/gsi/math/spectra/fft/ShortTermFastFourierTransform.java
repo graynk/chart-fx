@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import de.gsi.dataset.DataSet;
 import de.gsi.dataset.DataSet3D;
 import de.gsi.dataset.spi.DoubleDataSet3D;
+import de.gsi.math.spectra.Apodization;
 import de.gsi.math.spectra.SpectrumTools;
 
 /**
@@ -27,8 +28,12 @@ public class ShortTermFastFourierTransform {
      * @return the spectrogram, a DataSet3D with dimensions [nf = nQuantx x nY = ]
      */
     public static DataSet3D getSpectrogram(final DataSet input, final int nQuantf, final double overlap) {
-        int nQuantt = (int) Math.floor((input.getDataCount() - nQuantf) / (nQuantf * (1 - overlap)));
+        int nQuantt = (int) Math.floor(input.getDataCount() / (nQuantf * (1 - overlap)));
         return getSpectrogram(input, nQuantf, nQuantt);
+    }
+
+    public static DataSet3D getSpectrogram(final DataSet input, int nQuantf, int nQuantt) {
+        return getSpectrogram(input, nQuantf, nQuantt, Apodization.Hann, Padding.ZERO);
     }
 
     /**
@@ -37,24 +42,21 @@ public class ShortTermFastFourierTransform {
      * @param input a dataset with equidistantly spaced y(t) data
      * @param nQuantf the number of frequency bins
      * @param nQuantt the number of time bins
+     * @param apodization function, by default Hann window is used
+     * @param padding how to pad the slices at the start and end of the time axis: ZERO(default), ZOH or MIRROR
      * @return the spectrogram, a DataSet3D with dimensions [nf = nQuantx x nY = ]
      */
-    public static DataSet3D getSpectrogram(final DataSet input, int nQuantf, int nQuantt) {
+    public static DataSet3D getSpectrogram(final DataSet input, final int nQuantf, int nQuantt,
+            final Apodization apodization, final Padding padding) {
         // validate input data
-        if (input.getDataCount(DIM_X) < nQuantf) {
-            LOGGER.atWarn().addArgument(nQuantf).log("Not enough samples for requested frequency resolution");
-            nQuantf = input.getDataCount(DIM_X);
-        }
         if (input.getDataCount(DIM_X) - nQuantf < nQuantt - 1) {
             LOGGER.atWarn().addArgument(nQuantt).log("Not enough samples for requested time resolution: {}");
-            nQuantt = input.getDataCount(DIM_X) - nQuantf + 1;
         }
 
         // set time axis
         double[] timeAxis = new double[nQuantt];
         for (int i = 0; i < nQuantt; i++) {
-            timeAxis[i] = input.get(DIM_X,
-                    Math.floorDiv(i * (input.getDataCount(DIM_X) - nQuantf), nQuantt) + Math.floorDiv(nQuantf, 2));
+            timeAxis[i] = input.get(DIM_X, Math.floorDiv(i * input.getDataCount(DIM_X), nQuantt));
         }
 
         // set frequency axis
@@ -66,7 +68,7 @@ public class ShortTermFastFourierTransform {
         }
 
         // set amplitude data
-        double[][] amplitudeData = new double[nQuantt][];
+        double[][] amplitudeData = new double[nQuantf/2][nQuantt];
         double amplitudeMin = Double.POSITIVE_INFINITY;
         double amplitudeMax = Double.NEGATIVE_INFINITY;
 
@@ -75,40 +77,73 @@ public class ShortTermFastFourierTransform {
         double[] raw = new double[nQuantf];
         double[] mean = new double[nQuantf / 2];
         double[] current = new double[nQuantf / 2];
-        final int timestep = Math.floorDiv(input.getDataCount() - nQuantf, nQuantt);
+        final int nData = input.getDataCount(DIM_X);
         for (int i = 0; i < nQuantt; i++) {
-            LOGGER.atDebug().addArgument(i * timestep).addArgument(i * timestep + nQuantf)
-                    .log("SFFT: evaluating slice from {} to {}");
             for (int j = 0; j < nQuantf; j++) {
-                raw[j] = input.get(DIM_Y, i * timestep + j);
+                final int index = Math.floorDiv(i * nData, nQuantt) + j - nQuantf / 2;
+                if (index < 0) {
+                    switch (padding) {
+                    case ZERO:
+                        raw[j] = 0;
+                        break;
+                    case ZOH:
+                        raw[j] = input.get(DIM_X, 0);
+                        break;
+                    case MIRROR:
+                        int mirroredIndex = -index % (2 * nData);
+                        mirroredIndex = mirroredIndex > nData ? 2 * nData - mirroredIndex : mirroredIndex;
+                        raw[j] = input.get(DIM_X, mirroredIndex);
+                        break;
+                    default:
+                    }
+                } else if (index >= nData) {
+                    switch (padding) {
+                    case ZERO:
+                        raw[j] = 0;
+                        break;
+                    case ZOH:
+                        raw[j] = input.get(DIM_X, nData - 1);
+                        break;
+                    case MIRROR:
+                        int mirroredIndex = nData - (nData - index) % nData;
+                        mirroredIndex = mirroredIndex < 0 ? -mirroredIndex : mirroredIndex;
+                        break;
+                    default:
+                    }
+                } else {
+                    raw[j] = apodization.getIndex(j, nQuantf) * input.get(DIM_Y, index);
+                }
             }
             fastFourierTrafo.realForward(raw);
-            amplitudeData[i] = SpectrumTools.computeMagnitudeSpectrum_dB(raw, true);
-            // do projection to frequency axis?
             current = SpectrumTools.computeMagnitudeSpectrum_dB(raw, true);
             for (int j = 0; j < nQuantf / 2; j++) {
-                amplitudeMin = Math.min(amplitudeMin, amplitudeData[i][j]);
-                amplitudeMax = Math.max(amplitudeMax, amplitudeData[i][j]);
-                mean[j] += current[j];
+                amplitudeMin = Math.min(amplitudeMin, current[j]);
+                amplitudeMax = Math.max(amplitudeMax, current[j]);
+                amplitudeData[j][i] = current[j];
             }
-        }
-        for (int j = 0; j < nQuantf / 2; j++) {
-            mean[j] /= nQuantt;
         }
 
         // initialize result dataset
-        DoubleDataSet3D result = new DoubleDataSet3D("SFFT(" + input.getName() + ")", frequencyAxis, timeAxis,
+        DoubleDataSet3D result = new DoubleDataSet3D("SFFT(" + input.getName() + ")", timeAxis, frequencyAxis,
                 amplitudeData);
-        result.getInfoList().add("nFFT=" + nQuantf + ", nT=" + nQuantt);
+        result.getMetaInfo().put("SFFT-nFFT", Integer.toString(nQuantf));
+        result.getMetaInfo().put("SFFT-nT", Integer.toString(nQuantt));
 
         // Set Axis Labels and Units
-        result.getAxisDescription(DIM_Y).set("Time", input.getAxisDescription(DIM_X).getUnit(), timeAxis[0],
-                timeAxis[timeAxis.length - 1]);
-        result.getAxisDescription(DIM_X).set("Frequency", "1/" + input.getAxisDescription(DIM_X).getUnit(),
-                frequencyAxis[0], frequencyAxis[frequencyAxis.length - 1]);
+        final String timeUnit = input.getAxisDescription(DIM_X).getUnit();
+        result.getAxisDescription(DIM_X).set("Time", timeUnit, timeAxis[0], timeAxis[timeAxis.length - 1]);
+        final String freqUnit = timeUnit.equals("s") ? "Hz" : "1/" + timeUnit;
+        result.getAxisDescription(DIM_Y).set("Frequency", freqUnit, frequencyAxis[0],
+                frequencyAxis[frequencyAxis.length - 1]);
         result.getAxisDescription(DIM_Z).set("Magnitude", input.getAxisDescription(DIM_Y).getUnit(), amplitudeMin,
                 amplitudeMax);
         LOGGER.atInfo().addArgument(result).log("result of sfft: {}");
         return result;
+    }
+
+    public enum Padding {
+        ZERO,
+        ZOH,
+        MIRROR;
     }
 }
