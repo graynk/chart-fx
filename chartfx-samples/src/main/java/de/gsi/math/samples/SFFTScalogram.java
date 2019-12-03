@@ -11,6 +11,7 @@ import de.gsi.chart.XYChart;
 import de.gsi.chart.axes.Axis;
 import de.gsi.chart.axes.spi.DefaultNumericAxis;
 import de.gsi.chart.plugins.UpdateAxisLabels;
+import de.gsi.chart.plugins.Zoomer;
 import de.gsi.chart.renderer.spi.ContourDataSetRenderer;
 import de.gsi.chart.renderer.spi.MetaDataRenderer;
 import de.gsi.chart.ui.geometry.Side;
@@ -50,9 +51,8 @@ public class SFFTScalogram extends AbstractDemoApplication {
     public Node getContent() {
         final PropertySheet propertySheet = new PropertySheet();
         propertySheet.getItems().addAll(BeanPropertyUtils.getProperties(demoProperties));
-
+        
         chart1 = new XYChart();
-        chart1.getPlugins().add(new UpdateAxisLabels());
         final ContourDataSetRenderer contourChartRenderer1 = new ContourDataSetRenderer();
         chart1.getRenderers().set(0, contourChartRenderer1);
         chart1.getRenderers().add(new MetaDataRenderer(chart1));
@@ -61,17 +61,23 @@ public class SFFTScalogram extends AbstractDemoApplication {
         xAxis.setSide(Side.BOTTOM);
         DefaultNumericAxis yAxis = new DefaultNumericAxis();
         yAxis.setSide(Side.LEFT);
+        chart1.getAxes().addAll(xAxis, yAxis);
         Axis zAxis = contourChartRenderer1.getZAxis();
-        chart1.getAxes().addAll(xAxis, yAxis, zAxis);
+        chart1.getAxes().addAll(zAxis);
+        // Add plugins after all axes are correctly set up
+        chart1.getPlugins().add(new UpdateAxisLabels());
+        chart1.getPlugins().add(new Zoomer());
 
         chart2 = new XYChart();
         chart2.getPlugins().add(new UpdateAxisLabels());
+        chart2.getPlugins().add(new Zoomer());
         final ContourDataSetRenderer contourChartRenderer2 = new ContourDataSetRenderer();
         chart2.getRenderers().set(0, contourChartRenderer2);
         chart2.getRenderers().add(new MetaDataRenderer(chart2));
         
         chart3 = new XYChart();
         chart3.getPlugins().add(new UpdateAxisLabels());
+        chart3.getPlugins().add(new Zoomer());
         chart3.getRenderers().add(new MetaDataRenderer(chart3));
 
         Button recalculateBtn = new Button("Recalculate");
