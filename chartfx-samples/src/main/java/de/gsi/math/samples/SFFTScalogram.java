@@ -7,9 +7,9 @@ import org.controlsfx.property.BeanPropertyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.gsi.chart.XYChart;
 import de.gsi.chart.axes.Axis;
 import de.gsi.chart.axes.spi.DefaultNumericAxis;
-import de.gsi.chart.plugins.DataPointTooltip;
 import de.gsi.chart.plugins.UpdateAxisLabels;
 import de.gsi.chart.renderer.spi.ContourDataSetRenderer;
 import de.gsi.chart.renderer.spi.MetaDataRenderer;
@@ -20,7 +20,6 @@ import de.gsi.dataset.DataSetMetaData;
 import de.gsi.dataset.spi.DataSetBuilder;
 import de.gsi.math.TMath;
 import de.gsi.math.samples.utils.AbstractDemoApplication;
-import de.gsi.math.samples.utils.DemoChart;
 import de.gsi.math.spectra.fft.ShortTermFastFourierTransform;
 import de.gsi.math.spectra.wavelet.ContinuousWavelet;
 import javafx.application.Application;
@@ -43,21 +42,20 @@ public class SFFTScalogram extends AbstractDemoApplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(SFFTScalogram.class);
 
     protected SfftDemoProperties demoProperties = new SfftDemoProperties();
-    protected DemoChart chart1;
-    protected DemoChart chart2;
-    protected DemoChart chart3;
+    protected XYChart chart1;
+    protected XYChart chart2;
+    protected XYChart chart3;
 
     @Override
     public Node getContent() {
         final PropertySheet propertySheet = new PropertySheet();
         propertySheet.getItems().addAll(BeanPropertyUtils.getProperties(demoProperties));
 
-        chart1 = new DemoChart();
+        chart1 = new XYChart();
         chart1.getPlugins().add(new UpdateAxisLabels());
         final ContourDataSetRenderer contourChartRenderer1 = new ContourDataSetRenderer();
         chart1.getRenderers().set(0, contourChartRenderer1);
         chart1.getRenderers().add(new MetaDataRenderer(chart1));
-        chart1.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
         DefaultNumericAxis xAxis = new DefaultNumericAxis();
         xAxis.setAutoUnitScaling(true);
         xAxis.setSide(Side.BOTTOM);
@@ -66,17 +64,15 @@ public class SFFTScalogram extends AbstractDemoApplication {
         Axis zAxis = contourChartRenderer1.getZAxis();
         chart1.getAxes().addAll(xAxis, yAxis, zAxis);
 
-        chart2 = new DemoChart();
+        chart2 = new XYChart();
         chart2.getPlugins().add(new UpdateAxisLabels());
         final ContourDataSetRenderer contourChartRenderer2 = new ContourDataSetRenderer();
         chart2.getRenderers().set(0, contourChartRenderer2);
         chart2.getRenderers().add(new MetaDataRenderer(chart2));
-        chart2.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
         
-        chart3 = new DemoChart();
+        chart3 = new XYChart();
         chart3.getPlugins().add(new UpdateAxisLabels());
         chart3.getRenderers().add(new MetaDataRenderer(chart3));
-        chart3.getPlugins().removeIf(plugin -> plugin instanceof DataPointTooltip);
 
         Button recalculateBtn = new Button("Recalculate");
         recalculateBtn.setOnAction(this::recalculate);
@@ -85,7 +81,7 @@ public class SFFTScalogram extends AbstractDemoApplication {
         return new HBox(new VBox(propertySheet, recalculateBtn), new VBox(new HBox(chart1, chart2), chart3));
     }
 
-    private void recalculate(ActionEvent evnt) {
+    private void recalculate(final ActionEvent evnt) {
         DataSet rawDataSet = loadSyntheticData();
         chart3.getDatasets().setAll(rawDataSet);
         DataSet3D sfftData = ShortTermFastFourierTransform.getSpectrogram(rawDataSet, demoProperties.getnFFT(),
@@ -97,9 +93,6 @@ public class SFFTScalogram extends AbstractDemoApplication {
                 demoProperties.getnWaveletT(), demoProperties.getNu(), demoProperties.getFMin(),
                 demoProperties.getFMax());
         chart2.getDatasets().setAll(dataWavelet);
-        // ContinuousWavelet wtrafo = new ContinuousWavelet();
-        // DataSet3D dataWavelet = wtrafo.getScalogram(rawDataSet.getValues(DataSet.DIM_X), nQuantx, nQuanty, nu, fmin,
-        //     fmax);
     }
 
     private DataSet loadSyntheticData() {
