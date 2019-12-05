@@ -183,7 +183,7 @@ public class XYChart extends Chart {
             }
 
             // check if there are assignable axes not yet present in the Chart's list
-            getAxes().addAll(renderer.getAxes().subList(0, 2).stream()
+            getAxes().addAll(renderer.getAxes().stream().limit(2)
                     .filter(a -> (a.getSide() != null && !getAxes().contains(a))).collect(Collectors.toList()));
         }
     }
